@@ -20,7 +20,29 @@ json.dump({'words': answers, 'pairs': ''.join(f"{c:04d}{t:04d}{p}" for c, t, p i
 import os
 os.makedirs('docs', exist_ok=True)
 codec = open('codec.js').read()
-html = open('template.html').read().replace('__CODEC__', codec).replace('__DATA__', open('data/common_pairs.json').read())
+# Compact form for the page: words packed into one string, and for each clue (in word
+# order) a count then its target indexes as gaps from the previous one. Each number is a
+# base-64 varint: 5 data bits per char, chars >= 32 mean "more follows". Colors are
+# recomputed in the page.
+B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+def varint(n):
+    out = ''
+    while n >= 32:
+        out += B64[32 + (n & 31)]
+        n >>= 5
+    return out + B64[n]
+by_clue = defaultdict(list)
+for c, t, _ in pairs:
+    by_clue[c].append(t)
+packed = ''
+for c in range(len(answers)):
+    ts, prev = sorted(by_clue[c]), 0
+    packed += varint(len(ts))
+    for t in ts:
+        packed += varint(t - prev)
+        prev = t
+page_data = json.dumps({'words': ''.join(answers), 'pairs': packed}, separators=(',', ':'))
+html = open('template.html').read().replace('__CODEC__', codec).replace('__DATA__', page_data)
 open('docs/index.html', 'w').write(html)
 open('docs/puzzle.html', 'w').write(open('puzzle_template.html').read().replace('__CODEC__', codec))
 

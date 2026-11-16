@@ -70,10 +70,24 @@
 </main>
 <script>
 const DATA = __DATA__;
-const W = DATA.words, P = [];
-for (let i = 0; i < DATA.pairs.length; i += 13) {
-  const s = DATA.pairs.slice(i, i + 13), pat = s.slice(8);
-  P.push({ c: W[+s.slice(0, 4)], t: W[+s.slice(4, 8)], p: pat, k: 5 - pat.split('B').length + 1, rnd: Math.random() });
+// Unpack the format written by build_common.py: per clue, a count then target-index gaps.
+const W = DATA.words.match(/.{5}/g), P = [];
+{
+  const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  let pos = 0;
+  const next = () => {
+    let n = 0, shift = 0, d;
+    do { d = B64.indexOf(DATA.pairs[pos++]); n += (d & 31) * 2 ** shift; shift += 5; } while (d >= 32);
+    return n;
+  };
+  for (let ci = 0; ci < W.length; ci++) {
+    let t = 0;
+    for (let n = next(); n > 0; n--) {
+      t += next();
+      const c = W[ci], p = scoreWord(c, W[t]);
+      P.push({ c, t: W[t], p, k: 5 - p.split('B').length + 1, rnd: Math.random() });
+    }
+  }
 }
 __CODEC__
 const LIMIT = 500;

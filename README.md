@@ -67,7 +67,8 @@ colored boxes, the harder the puzzle.
 
 ```
 data/answers.txt, data/allowed.txt   word lists
-data/common_pairs.json               generated puzzle data embedded in docs/index.html
+data/common_pairs.json               generated list of common-word puzzles (build_common.py packs it
+                                     into docs/index.html: about 100 KB, 67 KB gzipped)
 wio_core.py                          Wordle scoring + list loading
 codec.js / codec.py                  puzzle-link token encoder (keep in sync)
 template.html                        source for docs/index.html
