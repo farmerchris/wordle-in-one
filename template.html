@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wordle-in-One Browser</title>
+<style>
+  :root { --bg:#fff; --fg:#1a1a1b; --muted:#787c7e; --line:#d3d6da; --g:#6aaa64; --y:#c9b458; --b:#787c7e; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#121213; --fg:#f8f8f8; --muted:#a0a0a0; --line:#3a3a3c; --g:#538d4e; --y:#b59f3b; --b:#3a3a3c; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.4 -apple-system, system-ui, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 20px 16px 60px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  p.sub { color: var(--muted); margin: 0 0 18px; font-size: 13px; }
+  form { display:flex; flex-wrap:wrap; gap:12px; align-items:end; padding-bottom:14px; border-bottom:1px solid var(--line); }
+  label { display:flex; flex-direction:column; font-size:12px; color:var(--muted); gap:4px; }
+  input, select { font: inherit; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); width:120px; }
+  input.word { text-transform: uppercase; letter-spacing: 1px; }
+  #summary { color: var(--muted); font-size: 13px; margin: 12px 0; }
+  table { border-collapse: collapse; width: 100%; }
+  th { text-align:left; font-size:12px; color:var(--muted); font-weight:500; padding:6px 8px; border-bottom:1px solid var(--line); }
+  td { padding:6px 8px; border-bottom:1px solid var(--line); vertical-align: middle; }
+  .row { display:flex; gap:3px; }
+  .t { width:30px; height:30px; display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; border-radius:3px; text-transform:uppercase; }
+  .G { background: var(--g); } .Y { background: var(--y); } .B { background: var(--b); }
+  .tgt { font-weight:600; letter-spacing:1px; cursor:pointer; }
+  .tgt.hidden { color: transparent; background: var(--line); border-radius: 4px; user-select:none; }
+  .n { color: var(--muted); font-size: 12px; }
+  .won { color: var(--g); font-size: 12px; font-weight: 600; white-space: nowrap; }
+  button { font: inherit; padding:6px 10px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); cursor:pointer; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Wordle-in-One Browser</h1>
+  <nav style="font-size:13px;margin-bottom:10px"><a href="themes.html" style="color:var(--muted)">Themed puzzles</a></nav>
+  <p class="sub">Each row is a clue word and its score. Exactly one Wordle answer word gives that score. Clues and targets both come from the 2,315-word Wordle answer list, which is used here as the common-word list.</p>
+  <p class="sub">Clue: type a prefix (<b>cr</b>) or a pattern (<b>_r_n_</b>) to filter. Type all 5 letters, a real word or not, to see every puzzle that clue makes.</p>
+  <form onsubmit="return false">
+    <label>Clue<input id="clue" class="word" maxlength="5" placeholder="any" autocomplete="off"></label>
+    <label>Target<input id="target" class="word" maxlength="5" placeholder="any" autocomplete="off"></label>
+    <label>Min colored boxes
+      <select id="minc"><option>0</option><option selected>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+    </label>
+    <label>Max colored boxes
+      <select id="maxc"><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option selected>5</option></select>
+    </label>
+    <label>Sort
+      <select id="sort"><option value="colors">Fewest colors</option><option value="clue">Clue A–Z</option><option value="target">Target A–Z</option></select>
+    </label>
+    <label>&nbsp;<button id="hide" type="button">Show targets</button></label>
+  </form>
+  <div id="summary"></div>
+  <table><thead><tr><th>Clue + score</th><th>Target</th><th>Colors</th><th></th><th></th></tr></thead><tbody id="out"></tbody></table>
+</main>
+<script>
+const DATA = __DATA__;
+const W = DATA.words, P = [];
+for (let i = 0; i < DATA.pairs.length; i += 13) {
+  const s = DATA.pairs.slice(i, i + 13), pat = s.slice(8);
+  P.push({ c: W[+s.slice(0, 4)], t: W[+s.slice(4, 8)], p: pat, k: 5 - pat.split('B').length + 1 });
+}
+__CODEC__
+const LIMIT = 500;
+const puzzleUrl = (c, t) => 'puzzle.html?p=' + encodePair(c, t);
+const solved = loadSolved();
+const WSET = new Set(W);
+let hide = true;
+const $ = id => document.getElementById(id);
+// "cr" matches words starting with CR; "_r_n_" or "?r?n?" matches by position
+function matcher(q) {
+  q = q.trim().toLowerCase();
+  if (!q) return () => true;
+  if (/[_?.]/.test(q)) { const re = new RegExp('^' + q.replace(/[_?]/g, '.') + '$'); return w => re.test(w); }
+  return w => w.startsWith(q);
+}
+// Every puzzle a clue makes, computed live so any 5 letters work, real word or not.
+function cluePuzzles(c) {
+  const groups = {};
+  for (const w of W) (groups[scoreWord(c, w)] ||= []).push(w);
+  return Object.entries(groups)
+    .filter(([p, ws]) => ws.length === 1 && p !== 'GGGGG')
+    .map(([p, [t]]) => ({ c, t, p, k: 5 - p.split('B').length + 1 }));
+}
+function render() {
+  const q = $('clue').value.trim().toLowerCase(), custom = /^[a-z]{5}$/.test(q);
+  const mc = matcher(q), mt = matcher($('target').value), min = +$('minc').value, max = +$('maxc').value, sort = $('sort').value;
+  let rows = (custom ? cluePuzzles(q) : P).filter(r => r.k >= min && r.k <= max && mc(r.c) && mt(r.t));
+  const cmp = { colors: (a, b) => a.k - b.k || a.t.localeCompare(b.t) || a.c.localeCompare(b.c),
+                clue: (a, b) => a.c.localeCompare(b.c) || a.k - b.k,
+                target: (a, b) => a.t.localeCompare(b.t) || a.k - b.k }[sort];
+  rows.sort(cmp);
+  const targets = new Set(rows.map(r => r.t)).size;
+  $('summary').textContent = (custom ? `${q.toUpperCase()}${WSET.has(q) ? '' : ' (not on the word list)'}: ` : '') +
+    `${rows.length.toLocaleString()} puzzle${rows.length === 1 ? '' : 's'}, ${targets.toLocaleString()} distinct target${targets === 1 ? '' : 's'}` +
+    (rows.length > LIMIT ? ` (showing the first ${LIMIT})` : '');
+  $('out').innerHTML = rows.slice(0, LIMIT).map(rowHtml).join('');
+}
+const rowHtml = r =>
+  `<tr><td><div class="row">${[...r.c].map((ch, i) => `<div class="t ${r.p[i]}">${ch}</div>`).join('')}</div></td>` +
+  `<td><span class="tgt${hide ? ' hidden' : ''}" onclick="this.classList.toggle('hidden')">${r.t.toUpperCase()}</span></td>` +
+  `<td class="n">${r.k}</td><td>${solved[encodePair(r.c, r.t)] ? '<span class="won">✓ Solved</span> ' : ''}<a href="${puzzleUrl(r.c, r.t)}" target="_blank">Play ↗</a></td>` +
+  `<td><button type="button" data-url="${new URL(puzzleUrl(r.c, r.t), location.href).href}">Copy link</button></td></tr>`;
+['clue', 'target', 'minc', 'maxc', 'sort'].forEach(id => $(id).addEventListener('input', render));
+$('hide').onclick = () => { hide = !hide; $('hide').textContent = hide ? 'Show targets' : 'Hide targets'; render(); };
+$('out').onclick = e => {
+  const b = e.target.closest('button[data-url]');
+  if (b) navigator.clipboard.writeText(b.dataset.url).then(() => { b.textContent = 'Copied!'; });
+};
+window.addEventListener('storage', e => { if (e.key === SOLVED_KEY) { Object.assign(solved, loadSolved()); render(); } });
+render();
+</script>
+</body>
+</html>
