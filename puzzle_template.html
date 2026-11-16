@@ -48,6 +48,7 @@
     <div>
       <span id="after" hidden><button id="share">Copy result</button></span>
       <span id="giveup-wrap"><button id="giveup">Give up</button></span>
+      <button id="reset">Reset</button>
       <button id="copylink">Copy link</button>
     </div>
     <div class="kb" id="kb"></div>
@@ -105,6 +106,14 @@ if (!pair) {
   $('kb').onclick = e => { const k = e.target.dataset.k; if (k) key(k); };
   let gaveUp = false;
   $('giveup').onclick = () => { gaveUp = true; finish(`It was ${target.toUpperCase()}.`); };
+  // Start the puzzle over. A saved win stays saved.
+  $('reset').onclick = e => {
+    tries.length = 0; cur = ''; done = gaveUp = false;
+    $('msg').textContent = ''; $('after').hidden = true; $('giveup-wrap').hidden = false;
+    $('share').textContent = 'Copy result';
+    e.currentTarget.blur();  // so the next Enter submits a guess instead of resetting again
+    draw();
+  };
   $('copylink').onclick = () => {
     navigator.clipboard.writeText(location.href).then(() => {
       $('copylink').textContent = 'Copied!';

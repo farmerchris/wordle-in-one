@@ -23,7 +23,8 @@
   .row { display:flex; gap:3px; }
   .t { width:30px; height:30px; display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; border-radius:3px; text-transform:uppercase; }
   .G { background: var(--g); } .Y { background: var(--y); } .B { background: var(--b); }
-  .tgt { font-weight:600; letter-spacing:1px; cursor:pointer; }
+  /* fixed width so a hidden target's blank doesn't hint at wide or narrow letters */
+  .tgt { display:inline-block; width:5.4em; font-weight:600; letter-spacing:1px; cursor:pointer; white-space:nowrap; }
   .tgt.hidden { color: transparent; background: var(--line); border-radius: 4px; user-select:none; }
   .n { color: var(--muted); font-size: 12px; }
   #out a { color: var(--fg); text-decoration: none; padding:6px 10px; border:1px solid var(--line); border-radius:6px; white-space: nowrap; }
@@ -60,7 +61,7 @@
       <select id="maxc"><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option selected>5</option></select>
     </label>
     <label>Sort
-      <select id="sort"><option value="colors">Fewest colors</option><option value="clue">Clue A–Z</option><option value="target">Target A–Z</option></select>
+      <select id="sort"><option value="random" selected>Random</option><option value="colors">Fewest colors</option><option value="clue">Clue A–Z</option><option value="target">Target A–Z</option></select>
     </label>
     <label>&nbsp;<button id="hide" type="button">Show targets</button></label>
   </form>
@@ -72,7 +73,7 @@ const DATA = {"words":["aback","abase","abate","abbey","abbot","abhor","abide","
 const W = DATA.words, P = [];
 for (let i = 0; i < DATA.pairs.length; i += 13) {
   const s = DATA.pairs.slice(i, i + 13), pat = s.slice(8);
-  P.push({ c: W[+s.slice(0, 4)], t: W[+s.slice(4, 8)], p: pat, k: 5 - pat.split('B').length + 1 });
+  P.push({ c: W[+s.slice(0, 4)], t: W[+s.slice(4, 8)], p: pat, k: 5 - pat.split('B').length + 1, rnd: Math.random() });
 }
 // Puzzle-link codec: hides a clue/target pair in a 12-character base-36 token
 // (10 chars of scrambled letters + 2-char checksum). Obfuscation, not security.
@@ -132,18 +133,22 @@ function matcher(q) {
   return w => w.startsWith(q);
 }
 // Every puzzle a clue makes, computed live so any 5 letters work, real word or not.
+const clueCache = {};  // keeps a custom clue's random order fixed across re-renders
 function cluePuzzles(c) {
+  if (clueCache[c]) return clueCache[c];
   const groups = {};
   for (const w of W) (groups[scoreWord(c, w)] ||= []).push(w);
-  return Object.entries(groups)
+  return clueCache[c] = Object.entries(groups)
     .filter(([p, ws]) => ws.length === 1 && p !== 'GGGGG')
-    .map(([p, [t]]) => ({ c, t, p, k: 5 - p.split('B').length + 1 }));
+    .map(([p, [t]]) => ({ c, t, p, k: 5 - p.split('B').length + 1, rnd: Math.random() }));
 }
 function render() {
   const q = $('clue').value.trim().toLowerCase(), custom = /^[a-z]{5}$/.test(q);
   const mc = matcher(q), mt = matcher($('target').value), min = +$('minc').value, max = +$('maxc').value, sort = $('sort').value;
   let rows = (custom ? cluePuzzles(q) : P).filter(r => r.k >= min && r.k <= max && mc(r.c) && mt(r.t));
-  const cmp = { colors: (a, b) => a.k - b.k || a.t.localeCompare(b.t) || a.c.localeCompare(b.c),
+  // random order is fixed per page load (rnd), so it doesn't reshuffle while you type
+  const cmp = { random: (a, b) => a.rnd - b.rnd,
+                colors: (a, b) => a.k - b.k || a.c.localeCompare(b.c) || a.t.localeCompare(b.t),
                 clue: (a, b) => a.c.localeCompare(b.c) || a.k - b.k,
                 target: (a, b) => a.t.localeCompare(b.t) || a.k - b.k }[sort];
   rows.sort(cmp);
@@ -161,7 +166,12 @@ const rowHtml = r =>
   `<a href="${puzzleUrl(r.c, r.t)}" target="_blank">Play ↗</a>` +
   `<button type="button" data-url="${new URL(puzzleUrl(r.c, r.t), location.href).href}">Copy<span class="wide"> link</span></button></div></td></tr>`;
 ['clue', 'target', 'minc', 'maxc', 'sort'].forEach(id => $(id).addEventListener('input', render));
-$('hide').onclick = () => { hide = !hide; $('hide').textContent = hide ? 'Show targets' : 'Hide targets'; render(); };
+// Toggle in place rather than re-rendering, so the rows stay exactly where they are.
+$('hide').onclick = () => {
+  hide = !hide;
+  $('hide').textContent = hide ? 'Show targets' : 'Hide targets';
+  document.querySelectorAll('#out .tgt').forEach(e => e.classList.toggle('hidden', hide));
+};
 $('out').onclick = e => {
   const b = e.target.closest('button[data-url]');
   if (b) navigator.clipboard.writeText(b.dataset.url).then(() => { b.textContent = 'Copied!'; });

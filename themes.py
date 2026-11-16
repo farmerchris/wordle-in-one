@@ -82,7 +82,7 @@ THEMES = {
             'diary',
     'landforms': 'mount ridge cliff mesas butte delta plain gorge dunes bluff knoll islet coast beach crest',
     'religion': 'faith psalm bible deity altar saint pious glory grace abbey friar monks chant pagan rabbi '
-                'vicar choir angel',
+                'vicar choir angel jesus chaos',
     'myth': 'titan satyr nymph siren fairy giant gnome troll dryad myths hydra fable ogres elves',
     'medicine': 'nurse medic pills doses heals salve drugs serum cures tonic swabs stent gauze',
     'sickness': 'fever cough virus aches colds chill vomit ulcer croup mumps polio tumor lupus',
@@ -162,6 +162,25 @@ THEMES = {
     'hunting': 'rifle arrow decoy stalk track traps hound scent blind moose tusks games shoot lodge',
 }
 
+# Puzzles cut by hand as 'theme:clue>target': the clue doesn't really point at the
+# answer, or the same pair already appears under a better-fitting theme.
+WEAK = set("""
+food:bagel>gumbo food:bread>kebab food:chili>icing food:curry>syrup
+food:gravy>guava food:gumbo>mango food:mango>gumbo food:icing>chili food:melon>maple
+food:nacho>pecan food:sauce>sugar food:sugar>guava food:sweet>wheat food:latte>treat
+food:nacho>mocha food:nacho>bacon
+food:scone>icing food:cocoa>mocha food:mocha>cocoa food:grape>peach food:lemon>melon food:melon>lemon
+animals:sheep>hyena animals:dingo>bison animals:goose>gecko animals:heron>hound animals:hound>heron
+animals:lemur>camel animals:rhino>hound animals:bison>robin animals:egret>tiger animals:heron>rhino
+animals:horse>heron animals:rhino>robin animals:robin>bison animals:robin>rhino
+animals:raven>robin animals:eagle>egret
+music:opera>polka music:polka>opera music:tango>banjo music:tango>piano music:viola>polka
+royal:baron>manor body:blood>elbow jobs:actor>scout jobs:cadet>valet science:orbit>ratio
+praise:adore>ideal shapes:prism>spire cold:icily>icing cold:icing>icily grains:hazel>shell
+myth:giant>titan myth:titan>giant party:music>disco travel:hotel>motel travel:motel>hotel
+arctic:chill>icily dessert:scone>icing religion:choir>chaos
+""".split())
+
 EMOJI = {'G': '🟩', 'Y': '🟨', 'B': '⬜'}
 
 
@@ -177,7 +196,8 @@ def theme_puzzles(name, answers, lo=0, hi=5):
             buckets[score(clue, t)].append(t)
         for pat, ts in buckets.items():
             k = 5 - pat.count('B')
-            if len(ts) == 1 and ts[0] in targets and ts[0] != clue and lo <= k <= hi:
+            if (len(ts) == 1 and ts[0] in targets and ts[0] != clue and lo <= k <= hi
+                    and f'{name}:{clue}>{ts[0]}' not in WEAK):
                 hits.append((k, clue, pat, ts[0]))
     return sorted(hits)
 
