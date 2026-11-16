@@ -10,6 +10,9 @@ RAVEN  🟩⬜⬜⬜🟩   →  ROBIN
 This project finds every such puzzle, lets you browse them, and makes shareable puzzle
 links, including custom ones that use made-up words.
 
+**Play it here: https://farmerchris.github.io/wordle-in-one/index.html**
+([themed puzzles](https://farmerchris.github.io/wordle-in-one/themes.html))
+
 ## Word lists
 
 - `data/answers.txt`: the 2,315 original Wordle answers. These are the **common words**,
