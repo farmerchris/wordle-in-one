@@ -14,7 +14,7 @@
   p.sub { color: var(--muted); margin: 0 0 18px; font-size: 13px; }
   form { display:flex; flex-wrap:wrap; gap:12px; align-items:end; padding-bottom:14px; border-bottom:1px solid var(--line); }
   label { display:flex; flex-direction:column; font-size:12px; color:var(--muted); gap:4px; }
-  input, select { font: inherit; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); width:120px; }
+  input, select { font: inherit; font-size: 16px; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); width:120px; }
   input.word { text-transform: uppercase; letter-spacing: 1px; }
   #summary { color: var(--muted); font-size: 13px; margin: 12px 0; }
   table { border-collapse: collapse; width: 100%; }
@@ -26,7 +26,21 @@
   .tgt { font-weight:600; letter-spacing:1px; cursor:pointer; }
   .tgt.hidden { color: transparent; background: var(--line); border-radius: 4px; user-select:none; }
   .n { color: var(--muted); font-size: 12px; }
+  #out a { color: var(--fg); text-decoration: none; padding:6px 10px; border:1px solid var(--line); border-radius:6px; white-space: nowrap; }
+  #out a:hover, button:hover { border-color: var(--muted); }
   .won { color: var(--g); font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .act { display:flex; gap:6px; align-items:center; justify-content:flex-end; }
+  @media (max-width: 560px) {
+    main { padding: 16px 12px 40px; }
+    form { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    input, select { width: 100%; }
+    th, td { padding: 6px 3px; }
+    .t { width: 24px; height: 24px; font-size: 13px; }
+    .row { gap: 2px; }
+    .cols, .wide { display: none; }
+    .act button { display: none; }
+    .act a { padding: 4px 8px; font-size: 13px; }
+  }
   button { font: inherit; padding:6px 10px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); cursor:pointer; }
 </style>
 </head>
@@ -51,7 +65,7 @@
     <label>&nbsp;<button id="hide" type="button">Show targets</button></label>
   </form>
   <div id="summary"></div>
-  <table><thead><tr><th>Clue + score</th><th>Target</th><th>Colors</th><th></th><th></th></tr></thead><tbody id="out"></tbody></table>
+  <table><thead><tr><th>Clue + score</th><th>Target</th><th class="cols">Colors</th><th></th></tr></thead><tbody id="out"></tbody></table>
 </main>
 <script>
 const DATA = __DATA__;
@@ -99,8 +113,10 @@ function render() {
 const rowHtml = r =>
   `<tr><td><div class="row">${[...r.c].map((ch, i) => `<div class="t ${r.p[i]}">${ch}</div>`).join('')}</div></td>` +
   `<td><span class="tgt${hide ? ' hidden' : ''}" onclick="this.classList.toggle('hidden')">${r.t.toUpperCase()}</span></td>` +
-  `<td class="n">${r.k}</td><td>${solved[encodePair(r.c, r.t)] ? '<span class="won">✓ Solved</span> ' : ''}<a href="${puzzleUrl(r.c, r.t)}" target="_blank">Play ↗</a></td>` +
-  `<td><button type="button" data-url="${new URL(puzzleUrl(r.c, r.t), location.href).href}">Copy link</button></td></tr>`;
+  `<td class="n cols">${r.k}</td><td><div class="act">` +
+  (solved[encodePair(r.c, r.t)] ? '<span class="won">✓<span class="wide"> Solved</span></span>' : '') +
+  `<a href="${puzzleUrl(r.c, r.t)}" target="_blank">Play ↗</a>` +
+  `<button type="button" data-url="${new URL(puzzleUrl(r.c, r.t), location.href).href}">Copy<span class="wide"> link</span></button></div></td></tr>`;
 ['clue', 'target', 'minc', 'maxc', 'sort'].forEach(id => $(id).addEventListener('input', render));
 $('hide').onclick = () => { hide = !hide; $('hide').textContent = hide ? 'Show targets' : 'Hide targets'; render(); };
 $('out').onclick = e => {

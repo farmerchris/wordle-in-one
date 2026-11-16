@@ -27,11 +27,11 @@
   input#entry { position:absolute; opacity:0; pointer-events:none; }
   button { font: inherit; padding:8px 14px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); cursor:pointer; margin: 4px; }
   .kb { margin-top: 18px; user-select:none; }
-  .kb .krow { display:flex; gap:5px; justify-content:center; margin-bottom:6px; }
-  .kb button { margin:0; padding:0; height:46px; min-width:30px; flex:1; max-width:40px; font-weight:600; text-transform:uppercase; background:var(--line); border:none; }
+  .kb .krow { display:flex; gap:4px; justify-content:center; margin-bottom:6px; }
+  .kb button { margin:0; padding:0; height:50px; min-width:0; flex:1; max-width:40px; font-weight:600; text-transform:uppercase; background:var(--line); border:none; }
   .kb button.wide { max-width:64px; font-size:12px; }
   a { color: var(--muted); }
-  @media (max-width: 380px) { .t { width:48px; height:48px; font-size:24px; } }
+  @media (max-width: 380px) { main { padding: 20px 8px 40px; } .t { width:48px; height:48px; font-size:24px; } }
 </style>
 </head>
 <body>
@@ -45,8 +45,11 @@
     <div id="current" class="row"></div>
     <div id="guesses"></div>
     <div id="msg"></div>
-    <div id="after" hidden><button id="share">Copy result</button></div>
-    <div id="giveup-wrap"><button id="giveup">Give up</button></div>
+    <div>
+      <span id="after" hidden><button id="share">Copy result</button></span>
+      <span id="giveup-wrap"><button id="giveup">Give up</button></span>
+      <button id="copylink">Copy link</button>
+    </div>
     <div class="kb" id="kb"></div>
   </div>
   <div id="bad" hidden><p>This puzzle link is broken or incomplete.</p></div>
@@ -102,6 +105,12 @@ if (!pair) {
   $('kb').onclick = e => { const k = e.target.dataset.k; if (k) key(k); };
   let gaveUp = false;
   $('giveup').onclick = () => { gaveUp = true; finish(`It was ${target.toUpperCase()}.`); };
+  $('copylink').onclick = () => {
+    navigator.clipboard.writeText(location.href).then(() => {
+      $('copylink').textContent = 'Copied!';
+      setTimeout(() => { $('copylink').textContent = 'Copy link'; }, 1500);
+    });
+  };
   $('share').onclick = () => {
     const E = { G: '🟩', Y: '🟨', B: '⬜' }, em = [...scoreWord(clue, target)].map(c => E[c]).join('');
     const result = gaveUp ? 'gave up' : tries.length === 1 ? 'solved in one!' : `solved on try ${tries.length}`;
